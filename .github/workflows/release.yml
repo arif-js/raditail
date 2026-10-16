@@ -13,8 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      # Required for npm provenance: the publish step exchanges this token for a
-      # signed attestation linking the tarball to this commit and workflow.
+      # Required for npm trusted publishing and provenance.
       id-token: write
     steps:
       - name: Checkout
@@ -28,18 +27,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
-      - name: Configure and verify npm auth
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::NPM_TOKEN repository secret is missing or empty."
-            exit 1
-          fi
-          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          npm whoami --registry https://registry.npmjs.org/
+      - name: Setup npm for trusted publishing
+        run: npm install --global npm@11.5.1
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build library
@@ -56,8 +47,6 @@ jobs:
       - name: Version, publish and push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signs the publish with provenance; requires `id-token: write` above.
-          NPM_CONFIG_PROVENANCE: 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -71,8 +60,7 @@ jobs:
             git commit -m "chore: version packages [skip ci]"
           fi
 
-          # Publishes anything whose version is not yet on npm, and creates tags.
-          # `--provenance` comes from NPM_CONFIG_PROVENANCE.
+          # Publishes through npm trusted publishing and creates tags.
           pnpm changeset publish
 
           # Pushes made with GITHUB_TOKEN do not re-trigger workflows, so this
