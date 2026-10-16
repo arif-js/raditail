@@ -12,3 +12,4 @@ coverage
 
 # Personal, machine-local notes (publishing runbook, scratch files)
 *.local.md
+.agentsensor/
